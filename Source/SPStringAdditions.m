@@ -616,6 +616,14 @@ static NSInteger _smallestOf(NSInteger a, NSInteger b, NSInteger c);
 	return (matchCount > 0);
 }
 
+
+- (NSString *)substringAfter:(NSString *)needle fromEnd:(BOOL)reverse
+{
+	NSRange r = [self rangeOfString:needle options:(reverse ? NSBackwardsSearch : 0)];
+	if (r.location == NSNotFound) return self;
+	return [self substringFromIndex:(r.location + r.length)];
+}
+
 @end
 
 /**

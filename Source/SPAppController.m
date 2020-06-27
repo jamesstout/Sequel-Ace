@@ -51,6 +51,7 @@
 #import "SPSyntaxParser.h"
 #import "SPOSInfo.h"
 #import <PSMTabBar/PSMTabBarControl.h>
+#import "SPStringAdditions.h"
 
 @interface SPAppController ()
 
@@ -788,26 +789,58 @@
 	
 	NSValue *connect = @NO;
 	
-	[details setObject:@"SPTCPIPConnection" forKey:@"type"];
-	if([url port])
-		[details setObject:[url port] forKey:@"port"];
+	NSString *connectionType = @"SPTCPIPConnection";
 	
-	if([url user])
-		[details setObject:[url user] forKey:@"user"];
+	// is it safe to say that if we find '?socket='
+	// in the URL components (query part)
+	// then this is a socket connection?
+	// I think it's a reasonable assumption
+	NSURLComponents *ucp = [NSURLComponents componentsWithString:url.absoluteString];
 	
-	if([url password]) {
-		[details setObject:[url password] forKey:@"password"];
-		connect = @YES;
+	SPLog(@"ucp = %@", ucp);
+	
+	if([ucp.query containsString:@"socket="] == YES){
+		
+		connectionType = @"SPSocketConnection";
+		[details setObject:connectionType forKey:@"type"];
+		
+		if([ucp user]){
+			[details setObject:[url user] forKey:@"user"];
+		}
+		if([ucp password]) {
+			[details setObject:[ucp password] forKey:@"password"];
+			connect = @NO; // TODO: testing
+		}
+		if([ucp host]) {
+			[details setObject:[ucp host] forKey:@"host"];
+		}
+		if([ucp query]) {
+			[details setObject:[ucp.query substringAfter:@"socket=" fromEnd:NO]   forKey:@"socket"];
+		}
 	}
-	
-	if([[url host] length] && ![[url host] isEqualToString:@"localhost"])
-		[details setObject:[url host] forKey:@"host"];
-	else
-		[details setObject:@"127.0.0.1" forKey:@"host"];
-	
-	NSArray *pc = [url pathComponents];
-	if([pc count] > 1) // first object is "/"
-		[details setObject:[pc objectAtIndex:1] forKey:@"database"];
+	else{
+		
+		[details setObject:connectionType forKey:@"type"];
+		if([url port])
+			[details setObject:[url port] forKey:@"port"];
+		
+		if([url user])
+			[details setObject:[url user] forKey:@"user"];
+		
+		if([url password]) {
+			[details setObject:[url password] forKey:@"password"];
+			connect = @YES;
+		}
+		
+		if([[url host] length] && ![[url host] isEqualToString:@"localhost"])
+			[details setObject:[url host] forKey:@"host"];
+		else
+			[details setObject:@"127.0.0.1" forKey:@"host"];
+		
+		NSArray *pc = [url pathComponents];
+		if([pc count] > 1) // first object is "/"
+			[details setObject:[pc objectAtIndex:1] forKey:@"database"];
+	}
 	
 	[doc setState:@{@"connection":details,@"auto_connect": connect} fromFile:NO];
 }

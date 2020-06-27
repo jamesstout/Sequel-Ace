@@ -85,7 +85,7 @@ static inline id NSMutableAttributedStringAttributeAtIndex(NSMutableAttributedSt
  * @return A string with replacements applied
  */
 - (NSString *)stringByReplacingCharactersInSet:(NSCharacterSet *)set withString:(NSString *)string;
-
+- (NSString *)substringAfter:(NSString *)needle fromEnd:(BOOL)reverse;
 - (CGFloat)levenshteinDistanceWithWord:(NSString *)stringB;
 
 /**
