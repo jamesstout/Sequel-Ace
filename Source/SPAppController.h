@@ -57,9 +57,12 @@
 	NSMutableArray *runningActivitiesArray;
 
 	NSString *lastBundleBlobFilesDirectory;
+	
+	NSUserDefaults *prefs;
 }
 
 @property (readwrite, retain) NSString *lastBundleBlobFilesDirectory;
+@property (readwrite, retain) NSMutableArray<NSDictionary<NSString *, id> *> *bookmarks;
 
 - (IBAction)bundleCommandDispatcher:(id)sender;
 

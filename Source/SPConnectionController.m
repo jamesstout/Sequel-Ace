@@ -523,8 +523,9 @@ static NSComparisonResult _compareFavoritesUsingKey(id favorite1, id favorite2, 
 	[keySelectionPanel setDelegate:self];
 	[keySelectionPanel beginSheetModalForWindow:[dbDocument parentWindow] completionHandler:^(NSInteger returnCode)
 	{
-		NSString *selectedFilePath=[[keySelectionPanel URL] path];
-																		   
+//		NSString *selectedFilePath=[[keySelectionPanel URL] path];
+		NSString *selectedFilePath=@"/private/tmp/mysqld.sock";
+
 		//delay the release so it won't happen while this block is still executing.
 		// jamesstout notes
 		// replacing dispatch_get_current_queue with:
@@ -536,6 +537,16 @@ static NSComparisonResult _compareFavoritesUsingKey(id favorite1, id favorite2, 
 		});
 		
 		NSError *err=nil;
+		
+		NSFileManager *fm = [NSFileManager defaultManager];
+		
+		NSMutableArray *urlArr = [[NSMutableArray alloc] init];
+		
+		NSString *selectedFilePath2=keySelectionPanel.URLs[0].absoluteString;
+		
+		[urlArr setArray:[fm contentsOfDirectoryAtPath:selectedFilePath error:&err]];
+		
+		SPLog(@"urls = %@", urlArr);
 		
 		if([keySelectionPanel.URL startAccessingSecurityScopedResource] == YES){
 		

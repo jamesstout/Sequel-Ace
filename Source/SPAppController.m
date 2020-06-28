@@ -52,6 +52,7 @@
 #import "SPOSInfo.h"
 #import <PSMTabBar/PSMTabBarControl.h>
 #import "SPStringAdditions.h"
+#import "SPFunctions.h"
 
 @interface SPAppController ()
 
@@ -68,6 +69,7 @@
 @implementation SPAppController
 
 @synthesize lastBundleBlobFilesDirectory;
+@synthesize bookmarks;
 
 #pragma mark -
 #pragma mark Initialisation
@@ -77,6 +79,9 @@
  */
 - (id)init
 {
+	
+	SPLog(@"init");
+	
 	if ((self = [super init])) {
 		_sessionURL = nil;
 		aboutController = nil;
@@ -91,6 +96,15 @@
 		bundleKeyEquivalents = [[NSMutableDictionary alloc] initWithCapacity:1];
 		installedBundleUUIDs = [[NSMutableDictionary alloc] initWithCapacity:1];
 		runningActivitiesArray = [[NSMutableArray alloc] init];
+		
+		prefs = [NSUserDefaults standardUserDefaults];
+		
+		bookmarks = [[NSMutableArray alloc] init];
+		
+		id o;
+		if((o = [prefs objectForKey:SPSecureBookmarks])){
+			[bookmarks setArray:o];
+		}
 		
 		//Create runtime directiories
 		[[NSFileManager defaultManager] createDirectoryAtPath:[NSHomeDirectory() stringByAppendingPathComponent:@"tmp"] withIntermediateDirectories:true attributes:nil error:nil];
@@ -107,6 +121,9 @@
  */
 + (void)initialize
 {
+	
+	SPLog(@"initialize");
+
 	NSUserDefaults *prefs = [NSUserDefaults standardUserDefaults];
 
 	NSMutableDictionary *preferenceDefaults = [NSMutableDictionary dictionaryWithContentsOfFile:[[NSBundle mainBundle] pathForResource:SPPreferenceDefaultsFile ofType:@"plist"]];
@@ -127,6 +144,9 @@
  */
 - (void)awakeFromNib
 {
+	
+	SPLog(@"awakeFromNib");
+
 	// Register url scheme handle
 	[[NSAppleEventManager sharedAppleEventManager] setEventHandler:self
 													   andSelector:@selector(handleEvent:withReplyEvent:)
@@ -152,6 +172,9 @@
  */
 - (void)applicationDidFinishLaunching:(NSNotification *)notification
 {
+	
+	SPLog(@"applicationDidFinishLaunching");
+
 	NSDictionary *spfDict = nil;
 	NSArray *args = [[NSProcessInfo processInfo] arguments];
 	if (args.count == 5) {
@@ -815,7 +838,16 @@
 			[details setObject:[ucp host] forKey:@"host"];
 		}
 		if([ucp query]) {
+			
+			[self performSelectorOnMainThread:@selector(selectSocket) withObject:nil waitUntilDone:YES];
+			
+			NSURL *tmpURL = [NSURL fileURLWithPath:[ucp.query substringAfter:@"socket=" fromEnd:NO]];
+			if([tmpURL startAccessingSecurityScopedResource] == YES){
+				SPLog(@"got access to socket");
+			}
 			[details setObject:[ucp.query substringAfter:@"socket=" fromEnd:NO]   forKey:@"socket"];
+			
+			
 		}
 	}
 	else{
@@ -840,9 +872,79 @@
 		NSArray *pc = [url pathComponents];
 		if([pc count] > 1) // first object is "/"
 			[details setObject:[pc objectAtIndex:1] forKey:@"database"];
+		
 	}
 	
 	[doc setState:@{@"connection":details,@"auto_connect": connect} fromFile:NO];
+
+	
+}
+
+-(void)selectSocket{
+	NSOpenPanel *panel = [NSOpenPanel openPanel];
+	
+	[panel setDelegate:self];
+	[panel setCanChooseDirectories:YES];
+	[panel setCanChooseFiles:YES];
+	[panel setCanSelectHiddenExtension:YES];
+	[panel setAllowsMultipleSelection:NO];
+//	panel.allowedFileTypes = @[@".sock"];
+
+
+
+	// Check if at least one document exists, if so show a sheet
+	if ([self frontDocumentWindow]) {
+
+
+		
+		
+		[panel beginSheetModalForWindow:[self frontDocumentWindow] completionHandler:^(NSInteger returnCode) {
+
+			SPLog(@"here: %@", panel.URL);
+
+			if([panel.URL startAccessingSecurityScopedResource] == YES){
+				SPLog(@"got access to socket: %@", panel.URL);
+
+
+				NSLog(@"got access to: %@", panel.URL.absoluteString);
+
+				// a bit of duplicated code here,
+				// same code is in the export controler
+				//TODO: put this in a utility/helper class
+				BOOL __block beenHereBefore = NO;
+
+				// have we been here before?
+				[self.bookmarks enumerateObjectsUsingBlock:^(NSDictionary *dict, NSUInteger idx, BOOL *stop) {
+
+					if(dict[panel.URL.absoluteString] != nil){
+						NSLog(@"beenHereBefore: %@", dict[panel.URL.absoluteString]);
+						beenHereBefore = YES;
+						*stop = YES;
+					}
+				}];
+
+				if(beenHereBefore == NO){
+					// create a bookmark
+					NSError *error = nil;
+					// this needs to be read-only to handle keys with 400 perms so we add the bitwise OR NSURLBookmarkCreationSecurityScopeAllowOnlyReadAccess
+					NSData *tmpAppScopedBookmark = [panel.URL bookmarkDataWithOptions:(NSURLBookmarkCreationWithSecurityScope
+																								   | NSURLBookmarkCreationSecurityScopeAllowOnlyReadAccess)
+																   includingResourceValuesForKeys:nil
+																					relativeToURL:nil
+																							error:&error];
+					// save to prefs
+					if(tmpAppScopedBookmark && !error) {
+						[bookmarks addObject:@{panel.URL.absoluteString : tmpAppScopedBookmark}];
+						[prefs setObject:bookmarks forKey:SPSecureBookmarks];
+					}
+				}
+
+			}
+
+
+
+		}];
+	}
 }
 
 - (void)handleEventWithURL:(NSURL*)url
@@ -2574,6 +2676,8 @@
 
 	if (_sessionURL) SPClear(_sessionURL);
 	if (_spfSessionDocData) SPClear(_spfSessionDocData);
+	
+	SPClear(bookmarks);
 
 	[super dealloc];
 }
