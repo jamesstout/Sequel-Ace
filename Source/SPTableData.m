@@ -132,6 +132,10 @@
 	return columns;
 }
 
+- (NSMutableDictionary*)getStatus{
+	
+	return status;
+}
 /**
  * Retrieve all constraints.
  */
@@ -964,6 +968,31 @@
 /**
  * Retrieve the status of a table as a dictionary and add it to the local cache for reuse.
  */
+
+- (BOOL)doesTableContainNonLatinCharSet:(SPMySQLResult *)tableStatusResult{
+	
+	NSArray *row;
+	BOOL nonLatin = NO;
+	while (true) {
+		@autoreleasepool {
+			row = [tableStatusResult getRowAsArray];
+			if (!row) {
+				break;
+			}
+			
+			if([row[0] rangeOfString:@"latin"].location == NSNotFound){
+				SPLog(@"found nonLatin charset: %@", row[0]);
+				nonLatin = YES;
+				break;
+			}
+			
+		}
+	}
+
+	return nonLatin;
+}
+
+
 - (BOOL)updateStatusInformationForCurrentTable
 {
 	pthread_mutex_lock(&dataProcessingLock);
@@ -988,6 +1017,8 @@
 	[escapedTableName replaceOccurrencesOfString:@"'" withString:@"\\\'" options:0 range:NSMakeRange(0, [escapedTableName length])];
 
 	SPMySQLResult *tableStatusResult = nil;
+	
+	SPMySQLResult *tableStatusResult2 = nil;
 
 	if ([tableListInstance tableType] == SPTableTypeProc) {
 		NSMutableString *escapedDatabaseName = [NSMutableString stringWithString:[tableDocumentInstance database]];
@@ -1005,11 +1036,17 @@
 		tableStatusResult = [mySQLConnection queryString:[NSString stringWithFormat:@"SELECT * FROM information_schema.VIEWS AS r WHERE r.TABLE_NAME = '%@' AND r.TABLE_SCHEMA = '%@'", escapedTableName, escapedDatabaseName]];
 	}
 	else if ([tableListInstance tableType] == SPTableTypeTable) {
+		NSMutableString *escapedDatabaseName = [NSMutableString stringWithString:[tableDocumentInstance database]];
+		[escapedDatabaseName replaceOccurrencesOfString:@"'" withString:@"\\\'" options:0 range:NSMakeRange(0, [escapedDatabaseName length])];
 		[escapedTableName replaceOccurrencesOfRegex:@"\\\\(?=\\Z|[^\'])" withString:@"\\\\\\\\"];
 		tableStatusResult = [mySQLConnection queryString:[NSString stringWithFormat:@"SHOW TABLE STATUS LIKE '%@'", escapedTableName ]];
+		tableStatusResult2 = [mySQLConnection queryString:[NSString stringWithFormat:@"SELECT character_set_name FROM information_schema.`COLUMNS` WHERE table_schema = '%@' and TABLE_NAME = '%@'", escapedDatabaseName, escapedTableName ]];
 	}
 	[tableStatusResult setReturnDataAsStrings:YES]; //TODO: workaround for #2700 (#2699)
+	[tableStatusResult2 setReturnDataAsStrings:YES]; //TODO: workaround for #2700 (#2699)
 
+	BOOL tableContainsNonLatinCharsets = [self doesTableContainNonLatinCharSet:tableStatusResult2];
+	
 	// Check for any errors, only displaying them if the connection hasn't been terminated
 	if ([mySQLConnection queryErrored]) {
 		if ([mySQLConnection isConnected]) {
@@ -1026,6 +1063,10 @@
 
 	// Retrieve the status as a dictionary and set as the cache
 	[status setDictionary:[tableStatusResult getRowAsDictionary]];
+	
+	if(tableContainsNonLatinCharsets == YES){
+		[status setObject:@(tableContainsNonLatinCharsets) forKey:@"tableContainsNonLatinCharsets"];
+	}
 
 	if ([tableListInstance tableType] == SPTableTypeTable) {
 

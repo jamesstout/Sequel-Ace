@@ -82,6 +82,7 @@
 - (BOOL) updateAccurateNumberOfRowsForCurrentTableForcingUpdate:(BOOL)alwaysUpdate;
 - (NSDictionary *) parseFieldDefinitionStringParts:(NSArray *)definitionParts;
 - (NSArray *) primaryKeyColumnNames;
+- (NSMutableDictionary*)getStatus;
 
 #ifdef SP_CODA /* glue */
 - (void)setTableDocumentInstance:(SPDatabaseDocument*)doc;

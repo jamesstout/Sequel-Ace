@@ -523,8 +523,7 @@ static NSComparisonResult _compareFavoritesUsingKey(id favorite1, id favorite2, 
 	[keySelectionPanel setDelegate:self];
 	[keySelectionPanel beginSheetModalForWindow:[dbDocument parentWindow] completionHandler:^(NSInteger returnCode)
 	{
-//		NSString *selectedFilePath=[[keySelectionPanel URL] path];
-		NSString *selectedFilePath=@"/private/tmp/mysqld.sock";
+		NSString *selectedFilePath=[[keySelectionPanel URL] path];
 
 		//delay the release so it won't happen while this block is still executing.
 		// jamesstout notes

@@ -6938,16 +6938,26 @@ static int64_t SPDatabaseDocumentInstanceCounter = 0;
 		// an encoding change and reset is required.  This also caches table information on
 		// the working thread.
 		if( selectedTableType == SPTableTypeView || selectedTableType == SPTableTypeTable) {
+			
+			BOOL tableContainsNonLatinCharsets = [[tableDataInstance getStatus][@"tableContainsNonLatinCharsets"] boolValue];
 
+			SPLog(@"tableDataInstance status = %@", [tableDataInstance getStatus][@"tableContainsNonLatinCharsets"]);
+			
 			// tableEncoding == nil indicates that there was an error while retrieving table data
 			tableEncoding = [tableDataInstance tableEncoding];
-
-			// If encoding is set to Autodetect, update the connection character set encoding
-			// based on the newly selected table's encoding - but only if it differs from the current encoding.
-			if ([[[NSUserDefaults standardUserDefaults] objectForKey:SPDefaultEncoding] intValue] == SPEncodingAutodetect) {
-				if (tableEncoding != nil && ![tableEncoding isEqualToString:previousEncoding]) {
-					[self setConnectionEncoding:tableEncoding reloadingViews:NO];
-					changeEncoding = NO;
+			
+			if(tableContainsNonLatinCharsets == YES && [tableEncoding isEqualToString:@"latin1"]){
+				[mySQLConnection restoreStoredEncoding];
+			}
+			else{
+				
+				// If encoding is set to Autodetect, update the connection character set encoding
+				// based on the newly selected table's encoding - but only if it differs from the current encoding.
+				if ([[[NSUserDefaults standardUserDefaults] objectForKey:SPDefaultEncoding] intValue] == SPEncodingAutodetect) {
+					if (tableEncoding != nil && ![tableEncoding isEqualToString:previousEncoding]) {
+						[self setConnectionEncoding:tableEncoding reloadingViews:NO];
+						changeEncoding = NO;
+					}
 				}
 			}
 		}
