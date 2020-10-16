@@ -31,7 +31,7 @@
 #import "SPConnectionControllerDelegateProtocol.h"
 #import "SPFavoritesExportProtocol.h"
 #import "SPFavoritesImportProtocol.h"
-
+#import "Sequel_Ace-Swift.h"
 #import <SPMySQL/SPMySQL.h>
 
 @class SPDatabaseDocument, 
@@ -44,8 +44,8 @@
 	   SPKeychain,
 	   SPFavoriteNode,
 	   SPFavoriteTextFieldCell,
-       SPColorSelectorView
-;
+       SPColorSelectorView;
+
 
 typedef NS_ENUM(NSInteger, SPConnectionTimeZoneMode) {
     SPConnectionTimeZoneModeUseServerTZ,
@@ -53,7 +53,7 @@ typedef NS_ENUM(NSInteger, SPConnectionTimeZoneMode) {
     SPConnectionTimeZoneModeUseFixedTZ
 };
 
-@interface SPConnectionController : NSViewController <SPMySQLConnectionDelegate, NSOpenSavePanelDelegate, SPFavoritesImportProtocol, SPFavoritesExportProtocol, NSSplitViewDelegate>
+@interface SPConnectionController : NSViewController <SPMySQLConnectionDelegate, NSOpenSavePanelDelegate, SPFavoritesImportProtocol, SPFavoritesExportProtocol, NSSplitViewDelegate, DragDelegate>
 {
 	id <SPConnectionControllerDelegateProtocol, NSObject> delegate;
 	
@@ -130,7 +130,7 @@ typedef NS_ENUM(NSInteger, SPConnectionTimeZoneMode) {
 	IBOutlet NSView *connectionResizeContainer;
 	IBOutlet NSView *standardConnectionFormContainer;
 	IBOutlet NSView *standardConnectionSSLDetailsContainer;
-	IBOutlet NSView *socketConnectionFormContainer;
+	IBOutlet DragHandlingView *socketConnectionFormContainer;
 	IBOutlet NSView *socketConnectionSSLDetailsContainer;
 	IBOutlet NSView *sshConnectionFormContainer;
 	IBOutlet NSView *sshConnectionSSLDetailsContainer;
@@ -249,6 +249,7 @@ typedef NS_ENUM(NSInteger, SPConnectionTimeZoneMode) {
 - (IBAction)updateSSLInterface:(id)sender;
 - (IBAction)updateKeyLocationFileVisibility:(id)sender;
 - (void)updateSplitViewSize;
+- (void)registerForDragDrop;
 
 - (void)resizeTabViewToConnectionType:(NSUInteger)theType animating:(BOOL)animate;
 

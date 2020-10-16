@@ -55,6 +55,7 @@
 #import "SPSplitView.h"
 #import "SPColorSelectorView.h"
 #import "SPFunctions.h"
+#import "Sequel_Ace-Swift.h"
 
 #import <SPMySQL/SPMySQL.h>
 
@@ -3370,6 +3371,7 @@ static NSComparisonResult _compareFavoritesUsingKey(id favorite1, id favorite2, 
 			[bookmarks setArray:o];
 		}
 		
+		SPLog(@"reRequestSecureAccess");
 		// we need to re-request access to places we've been before..
 		[self reRequestSecureAccess];
 		
@@ -3412,9 +3414,29 @@ static NSComparisonResult _compareFavoritesUsingKey(id favorite1, id favorite2, 
 		reverseFavoritesSort = [prefs boolForKey:SPFavoritesSortedInReverse];
 
 		initComplete = YES;
+		
+		[self registerForDragDrop];
+
 	}
 
 	return self;
+}
+
+- (void)registerForDragDrop{
+	
+	SPLog(@"registerForDragDrop");
+	
+	
+	[(DragHandlingView*)socketConnectionFormContainer setDelegate:self];
+	
+	if (@available(macOS 10.13, *)) {
+		[socketConnectionFormContainer registerForDraggedTypes:@[NSPasteboardTypeFileURL]];
+	} else {
+		// Fallback on earlier versions
+		NSPasteboardType pbtype = (NSString *)kUTTypeFileURL;
+		[socketConnectionFormContainer registerForDraggedTypes:@[pbtype]];
+	}
+	
 }
 
 - (NSArray<NSMenuItem *> *)generateTimeZoneMenuItems
@@ -3475,6 +3497,49 @@ static NSComparisonResult _compareFavoritesUsingKey(id favorite1, id favorite2, 
 			}
 		}];
 	}];
+	
+	
+	
+//	this is all just to see if we can get access to a socket file
+	// we can ... but cannot startAccessingSecurityScopedResource with it.
+	// I added /private/tmp/ to the files in Prefs, so a secure bookmark exists
+	
+	NSFileManager *fileManager = [NSFileManager defaultManager];
+	BOOL isDir;
+
+	for(NSURL *url in resolvedBookmarks){
+		
+		if([fileManager fileExistsAtPath:url.path isDirectory:&isDir]) {
+			
+			if(isDir == YES){
+				NSArray *fileList = [fileManager contentsOfDirectoryAtURL:url includingPropertiesForKeys:nil options:NSDirectoryEnumerationSkipsSubdirectoryDescendants error:nil];
+				
+				SPLog(@"fileList: %@", fileList);
+				
+				for(NSURL *tmp in fileList){
+					
+					if([tmp.path isEqualTo:@"/private/tmp/mysql.sock"]){
+						
+						SPLog(@"Equal: %@", tmp.absoluteString);
+						
+						if([tmp startAccessingSecurityScopedResource] == YES){
+							SPLog(@"got access to: %@", tmp.absoluteString);
+						}
+						else{
+							// this line is triggered.
+							SPLog(@"ERROR: %@", tmp.absoluteString);
+						}
+					}
+					else{
+						SPLog(@"url abss: %@", tmp.absoluteString);
+						SPLog(@"url path: %@", tmp.path);
+						SPLog(@"url abssu: %@", tmp.absoluteURL);
+						
+					}
+				}
+			}
+		}
+	}
 }
 
 /**
@@ -3869,6 +3934,76 @@ static NSComparisonResult _compareFavoritesUsingKey(id favorite1, id favorite2, 
 		                    contextInfo:NULL];
 	}
 }
+
+- (BOOL)handleDragFrom:(DragHandlingView * _Nonnull)view dragInfo:(id<NSDraggingInfo> _Nonnull)dragInfo {
+	
+	if ([dragInfo conformsToProtocol:@protocol(NSDraggingInfo)]) {
+		
+		SPLog(@"dragInfo: %@",dragInfo);
+		SPLog(@"draggingPasteboard: %@",dragInfo.draggingPasteboard);
+		
+		NSURL *newURL = [NSURL URLFromPasteboard:dragInfo.draggingPasteboard];
+		
+		SPLog(@"newURL: %@",[newURL path]);
+		SPLog(@"newURL abs: %@",[newURL absoluteString]);
+		SPLog(@"newURL filePathURL: %@",[newURL filePathURL]);
+
+		[self setSocket:[newURL path]];
+		
+		
+		
+		if([newURL.filePathURL startAccessingSecurityScopedResource] == YES){
+			
+			NSLog(@"got access to: %@", newURL.path);
+			
+			BOOL __block beenHereBefore = NO;
+			
+			// have we been here before?
+			[self.bookmarks enumerateObjectsUsingBlock:^(NSDictionary *dict, NSUInteger idx, BOOL *stop) {
+				
+				if(dict[newURL.filePathURL] != nil){
+					NSLog(@"beenHereBefore: %@", dict[newURL.filePathURL]);
+					beenHereBefore = YES;
+					*stop = YES;
+				}
+			}];
+			
+			if(beenHereBefore == NO){
+				// create a bookmark
+				NSError *error = nil;
+				NSData *tmpAppScopedBookmark = [newURL.filePathURL bookmarkDataWithOptions:NSURLBookmarkCreationWithSecurityScope // this needs to be read-write
+																		 includingResourceValuesForKeys:nil
+																						  relativeToURL:nil
+																								  error:&error];
+				// save to prefs
+				if(tmpAppScopedBookmark && !error) {
+					[bookmarks addObject:@{newURL.filePathURL.absoluteString : tmpAppScopedBookmark}];
+					[prefs setObject:bookmarks forKey:SPSecureBookmarks];
+					SPLog(@"NO ERROR");
+
+				}
+				else{
+					SPLog(@"ERROR: %@", error.localizedDescription);
+
+				}
+			}
+		}
+		else{
+			SPLog(@"ERROR: startAccessingSecurityScopedResource failed");
+			return  NO;
+
+
+		}
+		
+		
+		
+		
+		
+
+	}
+	return  YES;
+}
+
 
 @end
 
