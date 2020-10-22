@@ -222,6 +222,9 @@
 			[newConnection connect];
 		}
 	}
+	
+	[FIRApp configure];
+	
 }
 
 

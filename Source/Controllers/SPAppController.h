@@ -29,6 +29,9 @@
 //
 //  More info at <https://github.com/sequelpro/sequelpro>
 
+@import Firebase;
+@import FirebaseCrashlytics;
+
 @class SPPreferenceController;
 @class SPAboutController;
 @class SPDatabaseDocument;
