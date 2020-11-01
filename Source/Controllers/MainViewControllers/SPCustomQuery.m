@@ -637,17 +637,24 @@ typedef void (^QueryProgressHandler)(QueryProgress *);
 		if([obj isKindOfClass:[NSString class]] && [(NSString *)obj length]){
 			
 			NSMutableString *query = [obj mutableCopy];
-			
+			NSMutableString *query2 = [obj mutableCopy];
+
 			// remove comments
 			[query replaceOccurrencesOfRegex:@"--.*?\n" withString:@""];
 			[query replaceOccurrencesOfRegex:@"--.*?$" withString:@""];
 			[query replaceOccurrencesOfRegex:@"/\\*(.|\n)*?\\*/" withString:@""];
 			
+			query2 = (NSMutableString*)[query2 replaceOccurrencesOfRegex:@"--.*?\n" replacement:@""];
+			query2 = (NSMutableString*)[query2 replaceOccurrencesOfRegex:@"--.*?$" replacement:@""];
+			query2 = (NSMutableString*)[query2 replaceOccurrencesOfRegex:@"/\\*(.|\n)*?\\*/" replacement:@""];
+			
+			
 			// trim leading and trailing spaces and new lines
 			[query setString:[query trimWhitespacesAndNewlines]];
 
 			SPLog(@"query: [%@]", query);
-			
+			SPLog(@"query2: [%@]", query2);
+
 			for (NSString *safeCommand in safeCommands){
 				if([query hasPrefixWithPrefix:safeCommand caseSensitive:NO] == YES){
 					SPLog(@"Safe command: [%@], breaking", safeCommand);

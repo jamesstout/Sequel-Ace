@@ -41,6 +41,10 @@ extension String {
 		}
 	}
 	
+	func replaceOccurrencesOfRegex(_ pattern: String, replacement: String) -> String {
+		return self.replacingOccurrences(of: pattern, with: replacement, options: .regularExpression)
+	}
+	
 	// the string with new lines and spaces trimmed from BOTH ends
 	var trimmedString: String {
         return self.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -62,6 +66,10 @@ extension String {
 
 	func hasSuffix(suffix: NSString, caseSensitive: Bool = true) -> Bool {
 		return (self as String).hasSuffix(suffix as String, caseSensitive: caseSensitive)
+	}
+	
+	func replaceOccurrencesOfRegex(_ pattern: NSString, replacement: NSString) -> NSString {
+		return (self as String).replaceOccurrencesOfRegex(pattern as String, replacement: replacement as String) as NSString
 	}
 	
 	func trimWhitespacesAndNewlines() -> NSString {
